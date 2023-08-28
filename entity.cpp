@@ -4,7 +4,7 @@ int t = 10;
 int memberNmuber;
 PFC curve(80);
 Big orderG1;
-G1 PG[groupSize],RG[groupSize];
+G1 PG[groupSize], RG[groupSize];
 G1 generator, Q, B[groupSize];
 G1 FG[groupSize][groupSize];
 int st[groupSize]; ///st字符串，用数组表示
@@ -60,37 +60,64 @@ void entity::initializeStep2(entity user[]) {
     pubEncKey = sumRis + sumRr;
     publicKey = pubEncKey;      //1)initialize
 
-    G1 sumFis = origin, sumFr = origin;
-    for (i = 0; i < memberNmuber; i++) {
-        if (i != number)
-            sumFis = sumFis + user[i].Fis[number];
-    }
-    for (i = memberNmuber; i < groupSize; i++) {
-        if (i != number)
-            sumFis = sumFis + FG[i][number];
-    }
+    for (i = 0; i < groupSize; i++) {
+        G1 sumF = origin, sumFG = origin;
 
-    S[number] = sumFis + sumFr; //2)initialize
+        if (i == 0) {
+            sumF = user[1].Fis[i];
+            j = 2;
+        } else {
+            sumF = user[0].Fis[i];
+            j = 1;
+        }
+        for (; j < memberNmuber; j++) {
+            if (i == j) continue;
+            sumF = sumF + user[j].Fis[i];
+        }
+
+        if (memberNmuber < groupSize) {
+            if (i == memberNmuber) {
+                if ((memberNmuber + 1) != groupSize) {
+                    j++;
+                    sumFG = FG[j][i];
+                    j++;
+                }
+
+            } else {
+                sumFG = FG[j][i];
+                j++;
+            }
+            for (; j < groupSize; j++) {
+                if (i == j) continue;
+                sumFG = sumFG + FG[j][i];
+            }
+        }
+
+        S[i] = sumF + sumFG;
+    }
 
     decKey = S[number] + Fis[number]; //3)initialize
 }
 
 void entity::joinUpdate(entity joinUser) {
+    int joinNumber = joinUser.number;
     int i;
 
     for (i = 0; i < groupSize; i++) {
-        if (i == number) continue;
+        if (i == joinNumber) continue;
         curve.precomp_for_mult(generator);
-        G1 FGiInve = curve.mult(generator, orderG1) + (-FG[number][i]);
+        G1 FGiInve = curve.mult(generator, orderG1) + (-FG[joinNumber][i]);
         S[i] = S[i] + joinUser.Fis[i] + FGiInve;
     }
 
     curve.precomp_for_mult(generator);
-    G1 RGiInve = curve.mult(generator, orderG1) + (-RG[number]);
+    G1 RGiInve = curve.mult(generator, orderG1) + (-RG[joinNumber]);
     pubEncKey = pubEncKey + joinUser.Ris + RGiInve;
     publicKey = pubEncKey;
-    setDecKey();
-//    decKey = S[number] + joinUser.Fis[number];
+
+    curve.precomp_for_mult(generator);
+    G1 FGiInve = curve.mult(generator, orderG1) + (-FG[joinNumber][number]);
+    decKey = decKey + joinUser.Fis[number] + FGiInve;
 }
 
 void entity::leaveUpdate(entity leaveUser) {
@@ -223,8 +250,8 @@ void globeSetup(int securityParameter, entity user[], Group *group) {
         cin>>memberNmuber;
     }while(memberNmuber>groupSize);*/
     cout << "请输入一个小于最大值的数，作为此次系统的参与人数：\n";
-    memberNmuber = 8;
-    cout << "数据初始化中，请稍候……"  << endl;
+    memberNmuber = 10;
+    cout << "数据初始化中，请稍候……" << endl;
     start = clock();
 
     for (i = 0; i < memberNmuber; i++) {
@@ -268,7 +295,7 @@ void join(entity user[], Group *group) {
         }
 
         for (i = 0; i < groupSize; i++) {
-            if (st[i] == 1) {
+            if (group->loc[i] == 1) {
                 for (j = 0; j < groupSize; j++) {
                     user[joinNumber].S[j] = user[i].S[j];
                 }
@@ -284,7 +311,7 @@ void join(entity user[], Group *group) {
     }
 }
 
-void leave(entity user[],Group *group) {
+void leave(entity user[], Group *group) {
     if (memberNmuber == 0) {
         cout << "系统没有成员，不能删除。" << endl;
     } else {
@@ -309,7 +336,7 @@ void leave(entity user[],Group *group) {
     }
 }
 
-void genSessionKey(G1 pubEncKey, entity user[],Group *group) {
+void genSessionKey(G1 pubEncKey, entity user[], Group *group) {
     Uset.clear();
     Sset.clear();
     Rset.clear();
