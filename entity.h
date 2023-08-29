@@ -18,23 +18,15 @@ extern "C" { ;
 
 using namespace std;
 
-#define groupSize 10
+#define groupSize 5
 
 extern int memberNmuber;
-extern Big orderG1;
 extern PFC curve;
-extern G1 PG[groupSize];
-extern G1 generator, Q, B[groupSize];
-extern G1 RG[groupSize], FG[groupSize][groupSize];
-extern int st[groupSize]; ///st�ַ������������ʾ
-extern set<int> Uset, Sset, Rset;
-extern G1 W1, W2;
-extern G1 publicKey;
-extern GT SK;
 extern char block[16];
 
+class Group;
 
-class entity {
+class Entity {
 public:
     int number;
     G1 Ris, Fis[groupSize], S[groupSize];
@@ -42,17 +34,17 @@ public:
     G1 pubEncKey;
     int GroupID;
 public:
-    entity();
+    Entity();
 
-    void initializeStep1();
+    void initializeStep1(int number,Group *group);
 
-    void initializeStep2(entity user[]);
+    void initializeStep2(Group *group);
 
-    void joinUpdate(entity joinUser);
+    void joinUpdate(Entity joinUser);
 
-    void leaveUpdate(entity leaveUser);
+    void leaveUpdate(Entity leaveUser);
 
-    void getSessionKey();
+    void getSessionKey(Group *group);
 
     int decryptMessage();
 
@@ -65,23 +57,42 @@ private:
 
 class Group {
 public:
-    vector<entity *> entityList;
+    vector<Entity *> entityList;
     int GroupID;
     int loc[groupSize];
+
+    Big orderG1;
+    G1 PG[groupSize], RG[groupSize];
+    G1 generator, Q, B[groupSize];
+    G1 FG[groupSize][groupSize];
+    G1 publicKey;
+    G1 W1, W2;
+    GT SK;
+
+
+    set<int> selectUser;
+    set<int> liveUser;
+    set<int> unselectUser;
+
+    set<int> leaveUser;
+    set<int> joinUser;
 public:
+    void groupSessionKey();
+    void globeSetup(int securityParameter);
     Group(int GroupID);
+
 };
 
-extern void globeSetup(int securityParameter, entity user[], Group *group);
+extern void globeSetup(int securityParameter);
 
-extern void join(entity user[], Group *group);
+extern void join(Entity user[], Group *group);
 
-extern void leave(entity user[], Group *group);
+extern void leave(Entity user[], Group *group);
 
-extern void genSessionKey(G1 pubEncKey, entity user[],Group *group);
+extern void genSessionKey(G1 pubEncKey, Entity user[], vector<Group> groups);
 
 extern int encryptMessage();
 
-extern void decryptMessage(entity user[]);
+extern void decryptMessage(Entity user[]);
 
 #endif // ENTITY_H_INCLUDED

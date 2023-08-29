@@ -8,12 +8,12 @@ using namespace std;
 
 int main() {
     int i;
-    entity user[groupSize];
+    Entity user[groupSize];
     Group group(1);
     int parameter, menu;
     cout << "请输入一个任意值，开始全局：";
     cin >> parameter;
-    globeSetup(parameter, user, &group);
+    group.globeSetup(parameter);
     //明文
     for (i = 0; i < 16; i++) block[i] = i;
 
@@ -24,23 +24,23 @@ int main() {
         cin >> menu;
         switch (menu) {
             case 1: {
-                genSessionKey(publicKey, user,&group);
+                group.groupSessionKey();
                 break;
             }
             case 2: {
-                encryptMessage();
+//                encryptMessage();
                 break;
             }
             case 3: {
-                decryptMessage(user);
+//                decryptMessage(user);
                 break;
             }
             case 4: {
-                leave(user,&group);
+//                leave(user,&group);
                 break;
             }
             case 5: {
-                join(user,&group);
+//                join(user,&group);
                 break;
             }
             case 6:
