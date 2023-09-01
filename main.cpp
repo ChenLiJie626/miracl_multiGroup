@@ -7,15 +7,16 @@
 using namespace std;
 
 int main() {
-    int i;
-    Entity user[groupSize];
-    Group group(1);
-    int parameter, menu;
-    cout << "请输入一个任意值，开始全局：";
-    cin >> parameter;
-    group.globeSetup(parameter);
+    int parameter=0, menu;
+    Groups groups = *new Groups();
+    AllGlobeSetup();
+    for(int i=0;i<groupNum;i++) {
+        Group group = *new Group(i);
+        group.globeSetup(parameter);
+        groups.groups.push_back(group);
+    }
     //明文
-    for (i = 0; i < 16; i++) block[i] = i;
+//    for (i = 0; i < 16; i++) block[i] = i;
 
 
     while (1) {
@@ -24,7 +25,7 @@ int main() {
         cin >> menu;
         switch (menu) {
             case 1: {
-                groupSessionKey(&group);
+                MultiGroupSessionKey(groups);
                 break;
             }
             case 2: {
@@ -36,11 +37,19 @@ int main() {
                 break;
             }
             case 4: {
-                leave(&group);
+                cout<<"请选择GroupID:\n";
+                for(int i=0;i<groupNum;i++) cout<<i<<" ";
+                cout<<endl;
+                int num;cin>>num;
+                leave(&groups.groups[num]);
                 break;
             }
             case 5: {
-                join(&group);
+                cout<<"请选择GroupID:\n";
+                for(int i=0;i<groupNum;i++) cout<<i<<" ";
+                cout<<endl;
+                int num;cin>>num;
+                join(&groups.groups[num]);
                 break;
             }
             case 6:

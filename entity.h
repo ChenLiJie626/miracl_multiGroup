@@ -19,9 +19,13 @@ extern "C" { ;
 using namespace std;
 
 #define groupSize 5
+#define groupNum 5
 
-extern int memberNmuber;
 extern PFC curve;
+extern Big orderG1;
+extern G1 PG[groupSize];
+extern G1 generator, Q, B[groupSize];
+extern G1 RG[groupSize], FG[groupSize][groupSize];
 extern char block[16];
 
 class Group;
@@ -60,11 +64,9 @@ public:
     vector<Entity> entityList;
     int GroupID;
     int loc[groupSize];
+    int memberNmuber;
 
-    Big orderG1;
-    G1 PG[groupSize], RG[groupSize];
-    G1 generator, Q, B[groupSize];
-    G1 FG[groupSize][groupSize];
+
     G1 publicKey;
     G1 W1, W2;
     GT SK;
@@ -85,18 +87,22 @@ public:
 
 };
 
-extern void globeSetup(int securityParameter);
+class Groups {
+public:
+    vector<Group> groups;
+    G1 W1[groupNum], W2[groupNum];
+    set<int> selectGroupUser[groupNum];
+public:
+    Groups();
+};
+extern void AllGlobeSetup();
 
 extern void join(Group *group);
 
 extern void leave(Group *group);
 
-void groupSessionKey(Group *group);
+extern void groupSessionKey(Group *group);
 
-extern void genSessionKey(G1 pubEncKey, Entity user[], vector<Group> groups);
-
-extern int encryptMessage();
-
-extern void decryptMessage(Entity user[]);
+extern void MultiGroupSessionKey(Groups groups);
 
 #endif // ENTITY_H_INCLUDED

@@ -1,23 +1,15 @@
 #include "entity.h"
 
-int memberNmuber;
 PFC curve(80);
-Big orderG1;
-G1 Ps[groupSize];
-G1 generator, Q, D[groupSize];
-G1 RG[groupSize], FG[groupSize][groupSize];
-int st[groupSize]; ///st字符串，用数组表示
-set<int> Uset, Sset, Rset;
-G1 publicKey;
-G1 W1, W2;
-GT SK;
 char block[16];
-
+Big orderG1;
+G1 PG[groupSize];
+G1 generator, Q, B[groupSize];
+G1 RG[groupSize], FG[groupSize][groupSize];
 Entity::Entity()
 {
 
 }
-
 
 ///初始化step1
 void Entity::initializeStep1(int number,Group *group) {
@@ -32,41 +24,41 @@ void Entity::initializeStep1(int number,Group *group) {
     ///Step1
     curve.random(r);
     curve.random(s);
-    curve.precomp_for_mult(group->generator);
-    Ris = curve.mult(group->generator, r);
-    curve.precomp_for_mult(group->generator);
-    Pis = curve.mult(group->generator, s);  //1)initialize
+    curve.precomp_for_mult(generator);
+    Ris = curve.mult(generator, r);
+    curve.precomp_for_mult(generator);
+    Pis = curve.mult(generator, s);  //1)initialize
     for (i = 0; i < groupSize; i++) {
-        curve.precomp_for_mult(group->B[i]);
-        G1 temp1 = curve.mult(group->B[i], r);
-        curve.precomp_for_mult(group->Q);
-        G1 temp2 = curve.mult(group->Q, s);
+        curve.precomp_for_mult(B[i]);
+        G1 temp1 = curve.mult(B[i], r);
+        curve.precomp_for_mult(Q);
+        G1 temp2 = curve.mult(Q, s);
         Fis[i] = temp1 + temp2;  //2)initialize
     }
 
 }
 void Entity::initializeStep2(Group *group) {
-    curve.precomp_for_mult(group->generator);
-    G1 origin = curve.mult(group->generator, group->orderG1);
+    curve.precomp_for_mult(generator);
+    G1 origin = curve.mult(generator, orderG1);
     G1 sumRis = origin, sumRr = origin;
 
 
     int i, j;
-    for (i = 0; i < memberNmuber; i++)
+    for (i = 0; i < group->memberNmuber; i++)
         sumRis = sumRis + group->entityList[i].Ris;
-    for (i = memberNmuber; i < groupSize; i++)
-        sumRr = sumRr + group->RG[i];
+    for (i = group->memberNmuber; i < groupSize; i++)
+        sumRr = sumRr + RG[i];
     pubEncKey = sumRis + sumRr;
     group->publicKey = pubEncKey;      //1)initialize
 
     G1 sumFis = origin, sumFr = origin;
-    for (i = 0; i < memberNmuber; i++) {
+    for (i = 0; i < group->memberNmuber; i++) {
         if (i != number)
             sumFis = sumFis + group->entityList[i].Fis[number];
     }
-    for (i = memberNmuber; i < groupSize; i++) {
+    for (i = group->memberNmuber; i < groupSize; i++) {
         if (i != number)
-            sumFis = sumFis + group->FG[i][number];
+            sumFis = sumFis + FG[i][number];
     }
     S[number] = sumFis + sumFr; //2)initialize
     decKey = S[number] + Fis[number]; //3)initialize
@@ -77,17 +69,17 @@ void Entity::getSessionKey(Group *group) {
     int i;
     for (i = 0; i < groupSize; i++) {
         if (group->unselectUser.count(i)) {
-            Si = Si + group->FG[i][number];
+            Si = Si + FG[i][number];
         }
     }
     curve.precomp_for_pairing(Si);
     curve.precomp_for_pairing(group->W1);
     GT temp1 = curve.pairing(Si, group->W1);
-    curve.precomp_for_mult(group->generator);
-    G1 W2Inve = curve.mult(group->generator, group->orderG1) + (-group->W2);
+    curve.precomp_for_mult(generator);
+    G1 W2Inve = curve.mult(generator, orderG1) + (-group->W2);
     curve.precomp_for_pairing(W2Inve);
-    curve.precomp_for_pairing(group->B[number]);
-    GT temp2 = curve.pairing(W2Inve, group->B[number]);
+    curve.precomp_for_pairing(B[number]);
+    GT temp2 = curve.pairing(W2Inve, B[number]);
     sessionKey = temp1 * temp2;
 
     if (group->SK != sessionKey) cout << "会话密钥生成出错！" << endl;
@@ -97,36 +89,31 @@ void Entity::getSessionKey(Group *group) {
     }
 }
 
-
-
-
-
 void Entity::joinUpdate(vector<Entity> Users, Group *group) {
     int i;
     for (i = 0; i < groupSize; i++) {
         for (int j = 0; j < Users.size(); j++) {
             Entity user = Users[j];
             if (i == user.number) continue;
-            curve.precomp_for_mult(group->generator);
-            G1 FGiInve = curve.mult(group->generator, group->orderG1) + (-group->FG[user.number][i]);
+            curve.precomp_for_mult(generator);
+            G1 FGiInve = curve.mult(generator, orderG1) + (-FG[user.number][i]);
             S[i] = S[i] + user.Fis[i] + FGiInve;
         }
     }
     for (int j = 0; j < Users.size(); j++) {
         Entity user = Users[j];
-        curve.precomp_for_mult(group->generator);
-        G1 RGiInve = curve.mult(group->generator, group->orderG1) + (-group->RG[user.number]);
+        curve.precomp_for_mult(generator);
+        G1 RGiInve = curve.mult(generator, orderG1) + (-RG[user.number]);
         pubEncKey = pubEncKey + user.Ris + RGiInve;
         group->publicKey = pubEncKey;
     }
     for (int j = 0; j < Users.size(); j++) {
         Entity user = Users[j];
-        curve.precomp_for_mult(group->generator);
-        G1 FGiInve = curve.mult(group->generator, group->orderG1) + (-group->FG[user.number][number]);
+        curve.precomp_for_mult(generator);
+        G1 FGiInve = curve.mult(generator, orderG1) + (-FG[user.number][number]);
         decKey = decKey + user.Fis[number] + FGiInve;
     }
 }
-
 void Entity::leaveUpdate(vector<Entity> Users, Group *group) {
     int i;
 
@@ -134,29 +121,34 @@ void Entity::leaveUpdate(vector<Entity> Users, Group *group) {
         for (int j = 0; j < Users.size(); j++) {
             Entity user = Users[j];
             if (i == user.number) continue;
-            curve.precomp_for_mult(group->generator);
-            G1 FiInve = curve.mult(group->generator, group->orderG1) + (-user.Fis[i]);
-            S[i] = S[i] + FiInve + group->FG[user.number][i];
+            curve.precomp_for_mult(generator);
+            G1 FiInve = curve.mult(generator, orderG1) + (-user.Fis[i]);
+            S[i] = S[i] + FiInve + FG[user.number][i];
         }
     }
 
     for (int j = 0; j < Users.size(); j++) {
         Entity user = Users[j];
-        curve.precomp_for_mult(group->generator);
-        G1 RiInve = curve.mult(group->generator, group->orderG1) + (-user.Ris);
-        pubEncKey = pubEncKey + RiInve + group->RG[user.number];
+        curve.precomp_for_mult(generator);
+        G1 RiInve = curve.mult(generator, orderG1) + (-user.Ris);
+        pubEncKey = pubEncKey + RiInve + RG[user.number];
         group->publicKey = pubEncKey;
     }
     for (int j = 0; j < Users.size(); j++) {
         Entity user = Users[j];
-        curve.precomp_for_mult(group->generator);
-        G1 FiInve = curve.mult(group->generator, group->orderG1) + (-user.Fis[number]);
-        decKey = decKey + FiInve + group->FG[user.number][number];
+        curve.precomp_for_mult(generator);
+        G1 FiInve = curve.mult(generator, orderG1) + (-user.Fis[number]);
+        decKey = decKey + FiInve + FG[user.number][number];
     }
 }
 
+void Entity::setDecKey()
+{
+    decKey = S[number] + Fis[number];
+}
+
 void join(Group *group) {
-    if (memberNmuber >= groupSize) {
+    if (group->memberNmuber >= groupSize) {
         cout << "系统成员人数已达上限，无法再新增成员。" << endl;
     } else {
         int joinNumber, i, j;
@@ -203,13 +195,13 @@ void join(Group *group) {
         for (int k = 0; k < group->joinUser.size(); k++) {
             joinNumber = group->joinUser[k];
             group->loc[joinNumber] = 1;
-            memberNmuber++;
+            group->memberNmuber++;
         }
         cout << "新增成员成功。" << endl;
     }
 }
 void leave(Group *group) {
-    if (memberNmuber == 0) {
+    if (group->memberNmuber == 0) {
         cout << "系统没有成员，不能删除。" << endl;
     } else {
         int leaveNumber, i;
@@ -237,16 +229,9 @@ void leave(Group *group) {
             if (group->loc[i] == 0) continue;
             group->entityList[i].leaveUpdate(Users, group);
         }
-        memberNmuber-=group->leaveUser.size();
+        group->memberNmuber-=group->leaveUser.size();
         cout << "删除成员成功。" << endl;
     }
-}
-
-
-
-void Entity::setDecKey()
-{
-    decKey = S[number] + Fis[number];
 }
 
 void groupSessionKey(Group* group) {
@@ -288,34 +273,34 @@ void groupSessionKey(Group* group) {
     G1 E = group->publicKey;
     for (i = 0; i < groupSize; i++) {
         if (group->unselectUser.count(i)) {
-            E = E + group->RG[i];
+            E = E + RG[i];
         }
     }
     Big d;
     curve.random(d);
-    curve.precomp_for_mult(group->generator);
+    curve.precomp_for_mult(generator);
     curve.precomp_for_mult(E);
-    group->W1 = curve.mult(group->generator, d);
+    group->W1 = curve.mult(generator, d);
     group->W2 = curve.mult(E, d);
-    curve.precomp_for_mult(group->generator);
-    G1 origin = curve.mult(group->generator, group->orderG1);
+    curve.precomp_for_mult(generator);
+    G1 origin = curve.mult(generator, orderG1);
     G1 temp1 = origin, temp2 = origin, temp3 = origin;
     for (i = 0; i < groupSize; i++) {
         if (group->liveUser.count(i)) {
             temp1 = temp1 + group->entityList[i].Pis;
             if (group->unselectUser.count(i)) {
-                temp3 = temp3 + group->PG[i];
+                temp3 = temp3 + PG[i];
             }
         } else {
-            temp2 = temp2 + group->PG[i];
+            temp2 = temp2 + PG[i];
         }
     }
     G1 temp4 = temp1 + temp2 + temp3;
     curve.precomp_for_mult(temp4);
     G1 temp = curve.mult(temp4, d);
     curve.precomp_for_pairing(temp);
-    curve.precomp_for_pairing(group->Q);
-    group->SK = curve.pairing(temp, group->Q);
+    curve.precomp_for_pairing(Q);
+    group->SK = curve.pairing(temp, Q);
 
     cout<<"group->SK: "<<group->SK.g<<endl;
 
@@ -331,22 +316,18 @@ void groupSessionKey(Group* group) {
 
     cout << "会话密钥生成成功。" << endl;
 }
-Group::Group(int GroupID) {
-    this->GroupID = GroupID;
+void MultiGroupSessionKey(Groups groups){
+    for(int i=0;i<groups.groups.size();i++){
+        Group group = groups.groups[i];
+        groupSessionKey(&group);
+    }
 }
 
-void Group::globeSetup(int securityParameter) {
-    ///先计算系统范围参数
-    cout << "请稍候……" << endl;
-
+void AllGlobeSetup(){
     time_t start, finish;
     start = clock();
 
     orderG1 = curve.order(); ///G1的阶
-
-    time_t seed;
-    time(&seed);
-    irand((long) seed);
     int i, j;
 
     curve.random(generator); ///获取生成元
@@ -372,18 +353,25 @@ void Group::globeSetup(int securityParameter) {
             FG[i][j] = temp1 + temp2;// 2）GlobeSetup
         }
     }
-
     finish = clock();
     double lll = (double) (finish - start) / CLOCKS_PER_SEC;
     cout << "time:" << lll << endl;
+}
+
+Group::Group(int GroupID) {
+    this->GroupID = GroupID;
+}
+void Group::globeSetup(int securityParameter) {
+    ///先计算系统范围参数
+    cout << "Group"<<GroupID<<"初始化中，请稍候……" << endl;
+
+    time_t start, finish;
+    int i, j;
+
+
 
 
     cout << "当前系统允许的成员人数最大值为：" << groupSize << endl;
-
-    /*do{
-        cout<<"请输入一个小于最大值的数，作为此次系统的参与人数：";
-        cin>>memberNmuber;
-    }while(memberNmuber>groupSize);*/
     memberNmuber = 5;
     cout << "数据初始化中，请稍候……" << endl;
     start = clock();
@@ -415,4 +403,11 @@ void Group::updateSi() {
         }
     }
 
+}
+
+Groups::Groups() {
+    groups.clear();
+    for(int i=0;i<groupNum;i++){
+        selectGroupUser[i].clear();
+    }
 }
