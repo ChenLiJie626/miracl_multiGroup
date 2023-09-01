@@ -36,13 +36,13 @@ public:
 public:
     Entity();
 
-    void initializeStep1(int number,Group *group);
+    void initializeStep1(int number, Group *group);
 
     void initializeStep2(Group *group);
 
-    void joinUpdate(Entity joinUser);
+    void joinUpdate(vector<Entity> Users, Group *group);
 
-    void leaveUpdate(Entity leaveUser);
+    void leaveUpdate(vector<Entity> Users, Group *group);
 
     void getSessionKey(Group *group);
 
@@ -57,7 +57,7 @@ private:
 
 class Group {
 public:
-    vector<Entity *> entityList;
+    vector<Entity> entityList;
     int GroupID;
     int loc[groupSize];
 
@@ -74,20 +74,24 @@ public:
     set<int> liveUser;
     set<int> unselectUser;
 
-    set<int> leaveUser;
-    set<int> joinUser;
+    vector<int> leaveUser;
+    vector<int> joinUser;
 public:
-    void groupSessionKey();
     void globeSetup(int securityParameter);
+
+    void updateSi();
+
     Group(int GroupID);
 
 };
 
 extern void globeSetup(int securityParameter);
 
-extern void join(Entity user[], Group *group);
+extern void join(Group *group);
 
-extern void leave(Entity user[], Group *group);
+extern void leave(Group *group);
+
+void groupSessionKey(Group *group);
 
 extern void genSessionKey(G1 pubEncKey, Entity user[], vector<Group> groups);
 

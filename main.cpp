@@ -24,7 +24,7 @@ int main() {
         cin >> menu;
         switch (menu) {
             case 1: {
-                group.groupSessionKey();
+                groupSessionKey(&group);
                 break;
             }
             case 2: {
@@ -36,11 +36,11 @@ int main() {
                 break;
             }
             case 4: {
-//                leave(user,&group);
+                leave(&group);
                 break;
             }
             case 5: {
-//                join(user,&group);
+                join(&group);
                 break;
             }
             case 6:
