@@ -231,6 +231,7 @@ void leave(Group *group) {
         }
         group->memberNmuber-=group->leaveUser.size();
         cout << "删除成员成功。" << endl;
+        group->leaveUser.clear();
     }
 }
 
@@ -358,8 +359,73 @@ void AllGlobeSetup(){
     cout << "time:" << lll << endl;
 }
 
+void splitting(Group *group, Groups *groups){
+    cout << "Group "<<group->GroupID<<"系统当前成员位置如下：" << endl;
+    group->splitUser.clear();
+    int userID, i,count;
+    for (i = 0; i < groupSize; i++) {
+        if (group->loc[i]) cout << i << " ";
+    }
+    cout << endl;
+    cout << "请输入分裂数量不少于"<<group->memberNmuber;
+    cout << endl;
+    cin>>count;
+    cout << "请输入分裂对象的位置, 右方为分割线";
+    int last = -1,flag = -1;
+    vector<Entity> Users;
+    Users.clear();
+    while (count--) {
+        cin >> userID;
+        if(flag==-1) {
+            flag = userID;
+            last = userID;
+            continue;
+        }
+        int num = 0;
+        for(int i=last+1;i<=userID;i++){
+            if(group->loc[i]) num++;
+        }
+        group->splitUser.push_back(num);
+        last = userID;
+    }
+    for(int i=flag+1;i<groupSize;i++) {
+        if (group->loc[i] == 0) continue;
+        group->leaveUser.push_back(i);
+        group->loc[i] = 0;
+        Users.push_back(group->entityList[i]);
+    }
+    cout << "正在分裂，请稍候……" << endl;
+    for (i = 0; i < groupSize; i++) {
+        if (group->loc[i] == 0) continue;
+        group->entityList[i].leaveUpdate(Users, group);
+    }
+    group->memberNmuber-=group->leaveUser.size();
+    group->leaveUser.clear();
+    int GroupID = groups->groupNum;
+    for(int i=0;i<group->splitUser.size();i++) {
+        Group newGroup = *new Group(i+GroupID);
+        newGroup.globeSetup(0);
+        Users.clear();
+        for(int j=group->splitUser[i];j<groupSize;j++){
+            newGroup.leaveUser.push_back(j);
+            newGroup.loc[j] = 0;
+            Users.push_back(newGroup.entityList[j]);
+        }
+        for(int j=0;j<groupSize;j++){
+            if (newGroup.loc[j] == 0) continue;
+            newGroup.entityList[j].leaveUpdate(Users,&newGroup);
+        }
+        newGroup.memberNmuber-=newGroup.leaveUser.size();
+        newGroup.leaveUser.clear();
+        groups->groups.push_back(newGroup);
+    }
+    groups->groupNum += group->splitUser.size();
+    cout<<"分裂成功"<<endl;
+}
+
 Group::Group(int GroupID) {
     this->GroupID = GroupID;
+    for(int i=0;i<groupSize;i++) loc[i] = 0;
 }
 void Group::globeSetup(int securityParameter) {
     ///先计算系统范围参数
@@ -372,7 +438,7 @@ void Group::globeSetup(int securityParameter) {
 
 
     cout << "当前系统允许的成员人数最大值为：" << groupSize << endl;
-    memberNmuber = 5;
+    memberNmuber = groupSize;
     cout << "数据初始化中，请稍候……" << endl;
     start = clock();
     for (i = 0; i < memberNmuber; i++) {

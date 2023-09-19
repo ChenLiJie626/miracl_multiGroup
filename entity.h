@@ -19,7 +19,7 @@ extern "C" { ;
 using namespace std;
 
 #define groupSize 5
-#define groupNum 5
+#define allGroupNum 5
 
 extern PFC curve;
 extern Big orderG1;
@@ -68,7 +68,7 @@ public:
 
 
     G1 publicKey;
-    G1 W1, W2;
+    G1 W1, W2;//发给别人的
     GT SK;
 
 
@@ -76,6 +76,7 @@ public:
     set<int> liveUser;
     set<int> unselectUser;
 
+    vector<int> splitUser;
     vector<int> leaveUser;
     vector<int> joinUser;
 public:
@@ -90,8 +91,9 @@ public:
 class Groups {
 public:
     vector<Group> groups;
-    G1 W1[groupNum], W2[groupNum];
-    set<int> selectGroupUser[groupNum];
+    int groupNum;
+    G1 W1[allGroupNum], W2[allGroupNum];
+    set<int> selectGroupUser[allGroupNum];
 public:
     Groups();
 };
@@ -104,5 +106,7 @@ extern void leave(Group *group);
 extern void groupSessionKey(Group *group);
 
 extern void MultiGroupSessionKey(Groups groups);
+
+extern void splitting(Group *group, Groups *groups);
 
 #endif // ENTITY_H_INCLUDED
