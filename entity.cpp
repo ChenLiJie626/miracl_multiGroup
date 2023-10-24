@@ -1,4 +1,6 @@
 #include "entity.h"
+#include <queue>
+#include <algorithm>
 
 PFC curve(80);
 char block[16];
@@ -6,13 +8,13 @@ Big orderG1;
 G1 PG[groupSize];
 G1 generator, Q, B[groupSize];
 G1 RG[groupSize], FG[groupSize][groupSize];
-Entity::Entity()
-{
+
+Entity::Entity() {
 
 }
 
 ///初始化step1
-void Entity::initializeStep1(int number,Group *group) {
+void Entity::initializeStep1(int number, Group *group) {
     this->number = number;
     time_t seed;
     time(&seed);
@@ -37,6 +39,7 @@ void Entity::initializeStep1(int number,Group *group) {
     }
 
 }
+
 void Entity::initializeStep2(Group *group) {
     curve.precomp_for_mult(generator);
     G1 origin = curve.mult(generator, orderG1);
@@ -84,7 +87,7 @@ void Entity::getSessionKey(Group *group) {
 
     if (group->SK != sessionKey) cout << "会话密钥生成出错！" << endl;
     if (group->SK == sessionKey) {
-        cout << "成员"<<number<<"会话密钥正确！" << endl;
+        cout << "成员" << number << "会话密钥正确！" << endl;
         cout << sessionKey.g << endl;
     }
 }
@@ -114,6 +117,7 @@ void Entity::joinUpdate(vector<Entity> Users, Group *group) {
         decKey = decKey + user.Fis[number] + FGiInve;
     }
 }
+
 void Entity::leaveUpdate(vector<Entity> Users, Group *group) {
     int i;
 
@@ -142,100 +146,74 @@ void Entity::leaveUpdate(vector<Entity> Users, Group *group) {
     }
 }
 
-void Entity::setDecKey()
-{
+void Entity::setDecKey() {
     decKey = S[number] + Fis[number];
 }
 
 void join(Group *group) {
-    if (group->memberNmuber >= groupSize) {
-        cout << "系统成员人数已达上限，无法再新增成员。" << endl;
-    } else {
-        int joinNumber, i, j;
-        vector<Entity> Users;
-        Users.clear();
-        group->joinUser.clear();
-        cout << "系统空缺位置如下：" << endl;
-        for (i = 0; i < groupSize; i++) {
-            if (group->loc[i] == 0) cout << i << " ";
-        }
-        cout << endl;
-        cout << "请输入新增对象的位置，输入“-1”结束：";
-        while (1) {
-            cin >> joinNumber;
-            if (joinNumber == -1) {
-                cout << "正在新增，请稍候……" << endl;
-                break;
-            }
-            Entity user = *new Entity();
-            user.initializeStep1(joinNumber, group);
-            group->joinUser.push_back(joinNumber);
-            Users.push_back(user);
-            group->entityList[joinNumber] = user;
-        }
+    int joinNumber, i, j;
+    vector<Entity> Users;
+    Users.clear();
+
+    for (int i = 0; i < group->joinUser.size(); i++) {
+        joinNumber = group->joinUser[i];
+        Entity user = *new Entity();
+        user.initializeStep1(joinNumber, group);
+        Users.push_back(user);
+        group->entityList[joinNumber] = user;
+    }
 
 
+    for (i = 0; i < groupSize; i++) {
+        if (group->loc[i] == 0) continue;
+        group->entityList[i].joinUpdate(Users, group);
+    }
+    for (int k = 0; k < group->joinUser.size(); k++) {
+        joinNumber = group->joinUser[k];
         for (i = 0; i < groupSize; i++) {
-            if (group->loc[i] == 0) continue;
-            group->entityList[i].joinUpdate(Users, group);
-        }
-        for (int k = 0; k < group->joinUser.size(); k++) {
-            joinNumber = group->joinUser[k];
-            for (i = 0; i < groupSize; i++) {
-                if (group->loc[i] == 1) {
-                    for (j = 0; j < groupSize; j++) {
-                        group->entityList[joinNumber].S[j] = group->entityList[i].S[j];
-                    }
-                    group->entityList[joinNumber].pubEncKey = group->entityList[i].pubEncKey;
-                    group->entityList[joinNumber].setDecKey();
-                    break;
+            if (group->loc[i] == 1) {
+                for (j = 0; j < groupSize; j++) {
+                    group->entityList[joinNumber].S[j] = group->entityList[i].S[j];
                 }
-            }
-        }
-        for (int k = 0; k < group->joinUser.size(); k++) {
-            joinNumber = group->joinUser[k];
-            group->loc[joinNumber] = 1;
-            group->memberNmuber++;
-        }
-        cout << "新增成员成功。" << endl;
-    }
-}
-void leave(Group *group) {
-    if (group->memberNmuber == 0) {
-        cout << "系统没有成员，不能删除。" << endl;
-    } else {
-        int leaveNumber, i;
-        vector<Entity> Users;
-        Users.clear();
-        cout << "系统当前成员位置如下：" << endl;
-        for (i = 0; i < groupSize; i++) {
-            if (group->loc[i] == 1) cout << i << " ";
-        }
-        cout << endl;
-        cout << "请输入通信对象的位置，输入“-1”结束：";
-        while (1) {
-            cin >> leaveNumber;
-            if (leaveNumber == -1) {
-                cout << "正在生成会话秘钥，请稍候……" << endl;
+                group->entityList[joinNumber].pubEncKey = group->entityList[i].pubEncKey;
+                group->entityList[joinNumber].setDecKey();
                 break;
             }
-            group->leaveUser.push_back(leaveNumber);
-            group->loc[leaveNumber] = 0;
-            Users.push_back(group->entityList[leaveNumber]);
         }
-
-
-        for (i = 0; i < groupSize; i++) {
-            if (group->loc[i] == 0) continue;
-            group->entityList[i].leaveUpdate(Users, group);
-        }
-        group->memberNmuber-=group->leaveUser.size();
-        cout << "删除成员成功。" << endl;
-        group->leaveUser.clear();
     }
+    for (int k = 0; k < group->joinUser.size(); k++) {
+        joinNumber = group->joinUser[k];
+        group->loc[joinNumber] = 1;
+        group->memberNmuber++;
+    }
+    group->joinUser.clear();
+    cout << "新增成员成功。" << endl;
+
 }
 
-void groupSessionKey(Group* group) {
+void leave(Group *group) {
+    int leaveNumber, i;
+    vector<Entity> Users;
+    Users.clear();
+
+    for (int i = 0; i < group->leaveUser.size(); i++) {
+        leaveNumber = group->leaveUser[i];
+        group->loc[leaveNumber] = 0;
+        Users.push_back(group->entityList[leaveNumber]);
+    }
+
+
+    for (i = 0; i < groupSize; i++) {
+        if (group->loc[i] == 0) continue;
+        group->entityList[i].leaveUpdate(Users, group);
+    }
+    group->memberNmuber -= group->leaveUser.size();
+    cout << "删除成员成功。" << endl;
+    group->leaveUser.clear();
+
+}
+
+void groupSessionKey(Group *group) {
     group->selectUser.clear();
     group->liveUser.clear();
     group->unselectUser.clear();
@@ -243,7 +221,7 @@ void groupSessionKey(Group* group) {
     time(&seed);
     irand((long) seed);
 
-    cout << "Group "<<group->GroupID<<"系统当前成员位置如下：" << endl;
+    cout << "Group " << group->GroupID << "系统当前成员位置如下：" << endl;
     int userID, i;
     for (i = 0; i < groupSize; i++) {
         if (group->loc[i]) cout << i << " ";
@@ -303,7 +281,7 @@ void groupSessionKey(Group* group) {
     curve.precomp_for_pairing(Q);
     group->SK = curve.pairing(temp, Q);
 
-    cout<<"group->SK: "<<group->SK.g<<endl;
+    cout << "group->SK: " << group->SK.g << endl;
 
     finish = clock();
     double lll = (double) (finish - start) / CLOCKS_PER_SEC;
@@ -317,14 +295,16 @@ void groupSessionKey(Group* group) {
 
     cout << "会话密钥生成成功。" << endl;
 }
-void MultiGroupSessionKey(Groups groups){
-    for(int i=0;i<groups.groups.size();i++){
+
+void MultiGroupSessionKey(Groups groups) {
+    for (int i = 0; i < groups.groups.size(); i++) {
+        if (groups.leave[i]) continue;
         Group group = groups.groups[i];
         groupSessionKey(&group);
     }
 }
 
-void AllGlobeSetup(){
+void AllGlobeSetup() {
     time_t start, finish;
     start = clock();
 
@@ -359,82 +339,102 @@ void AllGlobeSetup(){
     cout << "time:" << lll << endl;
 }
 
-void splitting(Group *group, Groups *groups){
-    cout << "Group "<<group->GroupID<<"系统当前成员位置如下：" << endl;
-    group->splitUser.clear();
-    int userID, i,count;
-    for (i = 0; i < groupSize; i++) {
-        if (group->loc[i]) cout << i << " ";
-    }
-    cout << endl;
-    cout << "请输入分裂数量不少于"<<group->memberNmuber;
-    cout << endl;
-    cin>>count;
-    cout << "请输入分裂对象的位置, 右方为分割线";
-    int last = -1,flag = -1;
-    vector<Entity> Users;
-    Users.clear();
-    while (count--) {
-        cin >> userID;
-        if(flag==-1) {
-            flag = userID;
-            last = userID;
-            continue;
-        }
-        int num = 0;
-        for(int i=last+1;i<=userID;i++){
-            if(group->loc[i]) num++;
-        }
-        group->splitUser.push_back(num);
-        last = userID;
-    }
-    for(int i=flag+1;i<groupSize;i++) {
-        if (group->loc[i] == 0) continue;
-        group->leaveUser.push_back(i);
-        group->loc[i] = 0;
-        Users.push_back(group->entityList[i]);
-    }
+int vis[groupSize];
+
+void splitting(Group *group, Groups *groups, vector<Entity> Users, vector<int> splitUser) {
+    int i;
     cout << "正在分裂，请稍候……" << endl;
     for (i = 0; i < groupSize; i++) {
         if (group->loc[i] == 0) continue;
         group->entityList[i].leaveUpdate(Users, group);
     }
-    group->memberNmuber-=group->leaveUser.size();
+    group->memberNmuber -= group->leaveUser.size();
     group->leaveUser.clear();
     int GroupID = groups->groupNum;
-    for(int i=0;i<group->splitUser.size();i++) {
-        Group newGroup = *new Group(i+GroupID);
+    int l, r, count = 0;
+    i = 0;
+    while (i < splitUser.size()) {
+        l = i + 1;
+        r = i + splitUser[i];
+        for (int x = 0; x < splitUser.size(); x++) cout << splitUser[x] << " ";
+        cout << endl;
+        cout << l << " " << r << " " << i << endl;
+
+        for (int j = 0; j < groupSize; j++) vis[j] = 0;
+        for (int j = l; j <= r; j++) vis[splitUser[j]] = 1;
+        Group newGroup = *new Group(count + GroupID);
         newGroup.globeSetup(0);
         Users.clear();
-        for(int j=group->splitUser[i];j<groupSize;j++){
+        for (int j = 0; j < groupSize; j++) {
+            if (vis[j]) continue;
             newGroup.leaveUser.push_back(j);
             newGroup.loc[j] = 0;
             Users.push_back(newGroup.entityList[j]);
         }
-        for(int j=0;j<groupSize;j++){
+        for (int j = 0; j < groupSize; j++) {
             if (newGroup.loc[j] == 0) continue;
-            newGroup.entityList[j].leaveUpdate(Users,&newGroup);
+            newGroup.entityList[j].leaveUpdate(Users, &newGroup);
         }
-        newGroup.memberNmuber-=newGroup.leaveUser.size();
+        newGroup.memberNmuber -= newGroup.leaveUser.size();
         newGroup.leaveUser.clear();
         groups->groups.push_back(newGroup);
+        count++;
+        i = r + 1;
     }
-    groups->groupNum += group->splitUser.size();
-    cout<<"分裂成功"<<endl;
+    groups->groupNum = groups->groups.size();
+    cout << "分裂成功" << endl;
+}
+
+bool cmp(Group *a, Group *b) {
+    return a->memberNmuber > b->memberNmuber;
+}
+
+
+void combine(vector<Group *> GroupID, Groups *groups) {
+    sort(GroupID.begin(), GroupID.end(), cmp);
+    int count[groupSize] = {0};
+    int maxn = 0;
+    for (int i = 0; i < GroupID.size(); i++) {
+        Group *group = GroupID[i];
+        for (int j = 0; j < groupSize; j++) {
+            count[j] += group->loc[j];
+            maxn = max(maxn, count[j]);
+        }
+    }
+    for (int i = 1; i <= maxn; i++) {
+        Group *group = GroupID[i - 1];
+        for (int j = 0; j < groupSize; j++) {
+            if (group->loc[j] && i > count[j]) {
+                //leave;
+                group->leaveUser.push_back(j);
+                leave(group);
+            } else if (!group->loc[j] && i <= count[j]) {
+                //join;
+                group->joinUser.push_back(j);
+                join(group);
+            }
+        }
+    }
+    for (int i = maxn; i < GroupID.size(); i++) {
+        int id = GroupID[i]->GroupID;
+        groups->leave[id] = 1;
+    }
+    cout << "合并成功\n";
 }
 
 Group::Group(int GroupID) {
     this->GroupID = GroupID;
-    for(int i=0;i<groupSize;i++) loc[i] = 0;
+    for (int i = 0; i < groupSize; i++) loc[i] = 0;
+
+
 }
+
 void Group::globeSetup(int securityParameter) {
     ///先计算系统范围参数
-    cout << "Group"<<GroupID<<"初始化中，请稍候……" << endl;
+    cout << "Group" << GroupID << "初始化中，请稍候……" << endl;
 
     time_t start, finish;
     int i, j;
-
-
 
 
     cout << "当前系统允许的成员人数最大值为：" << groupSize << endl;
@@ -443,7 +443,7 @@ void Group::globeSetup(int securityParameter) {
     start = clock();
     for (i = 0; i < memberNmuber; i++) {
         Entity user = *new Entity();
-        user.initializeStep1(i,this); ///初始化step1
+        user.initializeStep1(i, this); ///初始化step1
         //user.GroupID = GroupID;
         entityList.push_back(user);
         loc[i] = 1;
@@ -460,6 +460,7 @@ void Group::globeSetup(int securityParameter) {
 
 
 }
+
 void Group::updateSi() {
     for (int i = 0; i < this->entityList.size(); i++) {
         if (loc[i] == 0) continue;
@@ -473,7 +474,99 @@ void Group::updateSi() {
 
 Groups::Groups() {
     groups.clear();
-    for(int i=0;i<groupNum;i++){
+    for (int i = 0; i < allGroupNum * 10; i++) {
         selectGroupUser[i].clear();
+        leave[i] = 0;
     }
+}
+
+int genKey(EncrpyKey *key) {
+
+    uint8_t publicKey[ECC_BYTES + 1];
+    uint8_t privateKey[ECC_BYTES];
+
+    ecc_make_key(publicKey, privateKey);
+
+    memcpy(key->privateKey, privateKey, sizeof(privateKey));
+    memcpy(key->publicKey, publicKey, sizeof(publicKey));
+
+    return EXIT_SUCCESS;
+}
+
+
+EncrpyKey clientKey = {0, 0};
+EncrpyKey serverKey = {0, 0};
+uint8_t message[ECC_BYTES];
+uint8_t signature[ECC_BYTES * 2] = {0};
+
+void encryptMessage(Group *group) {
+    int i, nk = 16;
+    aes a;
+    char key[32];
+    char iv[16];
+    for (i = 0; i < 16; i++) iv[i] = i;
+
+    curve.start_hash();
+    curve.add_to_hash(group->SK);
+    shs256_hash(&(curve.SH), key);
+
+    if (!aes_init(&a, MR_CBC, nk, key, iv)) {
+        printf("AES初始化失败\n");
+        return;
+    }
+
+    printf("明文：");
+    for (i = 0; i < 4 * NB; i++) printf("%02x", (unsigned char) block[i]);
+    printf("\n");
+    aes_encrypt(&a, block);
+    printf("密文：");
+
+    for (i = 0; i < 4 * NB; i++) printf("%02x", (unsigned char) block[i]), message[i] = block[i];
+    printf("\n");
+
+    aes_end(&a);
+
+    genKey(&clientKey);
+    genKey(&serverKey);
+
+    uint8_t secret[ECC_BYTES] = {0};
+    ecdh_shared_secret(serverKey.publicKey, clientKey.privateKey, secret);
+
+    ecdsa_sign(clientKey.privateKey, message, signature);
+    printf("signature is :  \n");
+    for (i = 0; i < ECC_BYTES; i++) {
+        printf("%02x", signature[i]);
+    }
+    printf("\n");
+}
+
+void decryptMessage(Group *group) {
+    int i, nk = 16;
+    aes a;
+    char key[32];
+    char iv[16];
+    for (i = 0; i < 16; i++) iv[i] = i;
+
+    curve.start_hash();
+    curve.add_to_hash(group->SK);
+    shs256_hash(&(curve.SH), key);
+
+    if (!aes_init(&a, MR_CBC, nk, key, iv)) {
+        printf("AES初始化失败\n");
+        return;
+    }
+
+    char cipher[16];
+    for (i = 0; i < 16; i++) {
+        cipher[i] = block[i];
+    }
+
+    aes_decrypt(&a, cipher);
+    printf("明文：");
+    for (i = 0; i < 4 * NB; i++) printf("%02x", (unsigned char) cipher[i]);
+    printf("\n");
+
+    aes_end(&a);
+    int result = ecdsa_verify(clientKey.publicKey, message, signature);
+    if (result)printf("签名验证成功 \n");
 }

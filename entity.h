@@ -4,6 +4,8 @@ extern "C" { ;
 #include "miracl.h"
 }
 
+#include "EccTest.h"
+
 #include "ssp_pair.h"
 #include "big.h"
 #include <string>
@@ -14,6 +16,7 @@ extern "C" { ;
 #include <ctime>
 #include <iomanip>
 #include <set>
+#include <memory>
 #include "vector"
 
 using namespace std;
@@ -76,7 +79,6 @@ public:
     set<int> liveUser;
     set<int> unselectUser;
 
-    vector<int> splitUser;
     vector<int> leaveUser;
     vector<int> joinUser;
 public:
@@ -86,17 +88,31 @@ public:
 
     Group(int GroupID);
 
+    bool operator<(const Group &p) const {
+        if (this->memberNmuber > p.memberNmuber)return true;
+        return this->GroupID < p.GroupID;
+    }
+
+
 };
 
 class Groups {
 public:
     vector<Group> groups;
     int groupNum;
-    G1 W1[allGroupNum], W2[allGroupNum];
-    set<int> selectGroupUser[allGroupNum];
+    int leave[allGroupNum * 10];
+    G1 W1[allGroupNum * 10], W2[allGroupNum * 10];
+    set<int> selectGroupUser[allGroupNum * 10];
 public:
     Groups();
 };
+
+typedef struct Key {
+    uint8_t publicKey[ECC_BYTES + 1];
+    uint8_t privateKey[ECC_BYTES];
+} EncrpyKey;
+
+
 extern void AllGlobeSetup();
 
 extern void join(Group *group);
@@ -107,6 +123,13 @@ extern void groupSessionKey(Group *group);
 
 extern void MultiGroupSessionKey(Groups groups);
 
-extern void splitting(Group *group, Groups *groups);
+extern void splitting(Group *group, Groups *groups, vector<Entity> Users, vector<int> splitUser);
+
+extern void combine(vector<Group *> GroupID, Groups *groups);
+
+extern void encryptMessage(Group *group);
+
+extern void decryptMessage(Group *group);
+
 
 #endif // ENTITY_H_INCLUDED
