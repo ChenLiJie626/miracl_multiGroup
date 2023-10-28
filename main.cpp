@@ -1,7 +1,6 @@
 #include <iostream>
 #include "ssp_pair.h"
 #include "entity.h"
-#include "sm3_reference.h"
 #include <iomanip>
 #include <ctime>
 #include <fstream>
@@ -13,73 +12,28 @@ using namespace std;
 #define CONTENT "This is a content"
 
 
-int kdf(unsigned char *zl, unsigned char *zr, int klen, unsigned char *kbuf) {
-/*
-return 0: kbuf is 0, unusable
-       1: kbuf is OK
-*/
-    unsigned char buf[70];
-    unsigned char digest[32];
-    unsigned int ct = 0x00000001;
-    int i, m, n;
-    unsigned char *p;
-
-    memcpy(buf, zl, 32);
-    memcpy(buf + 32, zr, 32);
-
-    m = klen / 32;
-    n = klen % 32;
-    p = kbuf;
-
-    for (i = 0; i < m; i++) {
-        buf[64] = (ct >> 24) & 0xFF;
-        buf[65] = (ct >> 16) & 0xFF;
-        buf[66] = (ct >> 8) & 0xFF;
-        buf[67] = ct & 0xFF;
-        SM3Calc(buf, 68, p);
-        p += 32;
-        ct++;
-    }
-
-    if (n != 0) {
-        buf[64] = (ct >> 24) & 0xFF;
-        buf[65] = (ct >> 16) & 0xFF;
-        buf[66] = (ct >> 8) & 0xFF;
-        buf[67] = ct & 0xFF;
-        SM3Calc(buf, 68, digest);
-    }
-
-    memcpy(p, digest, n);
-
-    for (i = 0; i < klen; i++) {
-        if (kbuf[i] != 0)
-            break;
-    }
-
-    if (i < klen)
-        return 1;
-    else
-        return 0;
-}
 
 int main() {
-//    Big x1, y1; // c1 
-//    Big x2, y2;
-//    unsigned char zl[32], zr[32], msg[32];
-//    int klen =128;
-//    big_to_bytes(32, x2.getbig(), (char *) zl, TRUE);
-//    big_to_bytes(32, y2.getbig(), (char *) zr, TRUE);
-//    kdf(zl, zr, klen, msg);
+    //    Big x1, y1; // c1
+    //    Big x2, y2;
+    //    unsigned char zl[32], zr[32], msg[32];
+    //    int klen =128;
+    //    big_to_bytes(32, x2.getbig(), (char *) zl, TRUE);
+    //    big_to_bytes(32, y2.getbig(), (char *) zr, TRUE);
+    //    kdf(zl, zr, klen, msg);
 
 
-
+    AllGlobeSetup();
     int parameter = 0, menu;
     Groups groups = *new Groups();
-    groups.groupNum = 2;
-    AllGlobeSetup();
+    cout << "请输入创建的群组数量:\n";
+    cin >> groups.groupNum;
     for (int i = 0; i < groups.groupNum; i++) {
+        cout << "请输入Group " << i << " 创建的人数:\n";
+        int existNumber;
+        cin >> existNumber;
         Group group = *new Group(i);
-        group.globeSetup(parameter);
+        group.globeSetup(existNumber);
         groups.groups.push_back(group);
     }
     //明文
@@ -87,7 +41,7 @@ int main() {
 
 
     while (1) {
-        cout << "菜单：1.选择通信对象  2.发送加密消息且签名  3.接收消息验证签名  4.删除成员  5.新增成员  6.群分裂 7. 群合并 8.退出"
+        cout << "菜单：1.选择通信对象  2.发送加密消息且签名  3.接收消息验证签名  4.删除成员  5.新增成员  6.群分裂 7. 群合并 8.工作量证明 9.退出"
              << endl;
         cout << "请输入操作选项：";
         cin >> menu;
@@ -97,11 +51,21 @@ int main() {
                 break;
             }
             case 2: {
+                time_t start, finish;
+                start = clock();
                 encryptMessage(&groups.groups[0]);
+                finish = clock();
+                double llll = (double)(finish - start) / CLOCKS_PER_SEC;
+                cout << "time:" << llll << endl;
                 break;
             }
             case 3: {
+                time_t start, finish;
+                start = clock();
                 decryptMessage(&groups.groups[0]);
+                finish = clock();
+                double llll = (double)(finish - start) / CLOCKS_PER_SEC;
+                cout << "time:" << llll << endl;
                 break;
             }
             case 4: {
@@ -113,10 +77,11 @@ int main() {
                 cout << endl;
                 int num, leaveNumber;
                 cin >> num;
-                Group *group = &groups.groups[num];
+                Group* group = &groups.groups[num];
                 if (group->memberNmuber == 0) {
                     cout << "系统没有成员，不能删除。" << endl;
-                } else {
+                }
+                else {
                     cout << "系统当前成员位置如下：" << endl;
                     for (int i = 0; i < groupSize; i++) {
                         if (group->loc[i] == 1) cout << i << " ";
@@ -126,7 +91,7 @@ int main() {
                     while (true) {
                         cin >> leaveNumber;
                         if (leaveNumber == -1) {
-                            cout << "正在生成会话秘钥，请稍候……" << endl;
+                            cout << "正在删除，请稍候……" << endl;
                             break;
                         }
                         group->leaveUser.push_back(leaveNumber);
@@ -144,10 +109,11 @@ int main() {
                 cout << endl;
                 int num, joinNumber;
                 cin >> num;
-                Group *group = &groups.groups[num];
+                Group* group = &groups.groups[num];
                 if (group->memberNmuber >= groupSize) {
                     cout << "系统成员人数已达上限，无法再新增成员。" << endl;
-                } else {
+                }
+                else {
                     cout << "系统空缺位置如下：" << endl;
                     for (int i = 0; i < groupSize; i++) {
                         if (group->loc[i] == 0) cout << i << " ";
@@ -206,7 +172,13 @@ int main() {
                         splitUser.push_back(tmp[k]);
                     }
                 }
-                splitting(&groups.groups[num], &groups, Users,splitUser);
+                time_t start, finish;
+                start = clock();
+                splittingAdd(&groups, Users, splitUser, &groups.groups[num]);
+                splittingLeave(&groups.groups[num], Users);
+                finish = clock();
+                double lll = (double)(finish - start) / CLOCKS_PER_SEC;
+                cout << "time:" << lll << endl;
                 break;
             }
             case 7: {
@@ -217,7 +189,7 @@ int main() {
                 cout << endl;
                 cout << "请输入GroupID，输入“-1”结束：";
                 int num;
-                vector<Group *> GroupID;
+                vector<Group*> GroupID;
                 set<int> tmp;
                 while (true) {
                     cin >> num;
@@ -228,10 +200,25 @@ int main() {
                     }
                     GroupID.push_back(&groups.groups[num]);
                 }
+                time_t start, finish;
+                start = clock();
                 combine(GroupID, &groups);
+                finish = clock();
+                double lll = (double)(finish - start) / CLOCKS_PER_SEC;
+                cout << "time:" << lll << endl;
                 break;
             }
-            case 8:
+            case 8: {
+                time_t start, finish;
+                start = clock();
+                Block* p = new Block("Genesis Block", "");
+                p->ProofOfWork(DifficultyNum);
+                finish = clock();
+                double llll = (double)(finish - start) / CLOCKS_PER_SEC;
+                cout << "time:" << llll << endl;
+                break;
+            }
+            case 9:
                 return 0;
         }
     }

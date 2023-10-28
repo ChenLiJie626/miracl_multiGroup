@@ -22,7 +22,7 @@ extern "C" { ;
 using namespace std;
 
 #define groupSize 5
-#define allGroupNum 5
+#define allGroupNum 20
 
 extern PFC curve;
 extern Big orderG1;
@@ -42,14 +42,14 @@ public:
     int GroupID;
 public:
     Entity();
-
+    Entity(int num);
     void initializeStep1(int number, Group *group);
 
     void initializeStep2(Group *group);
 
-    void joinUpdate(vector<Entity> Users, Group *group);
+    void joinUpdate(vector<Entity> Users, Group *group, int flag);
 
-    void leaveUpdate(vector<Entity> Users, Group *group);
+    void leaveUpdate(vector<Entity> Users, Group *group,int flag);
 
     void getSessionKey(Group *group);
 
@@ -82,7 +82,7 @@ public:
     vector<int> leaveUser;
     vector<int> joinUser;
 public:
-    void globeSetup(int securityParameter);
+    void globeSetup(int existNumber);
 
     void updateSi();
 
@@ -107,6 +107,21 @@ public:
     Groups();
 };
 
+#define DifficultyNum    6
+
+class Block{
+public:
+    string    _hash;                //当前区块的哈希
+    string    _data;                //区块描述字符
+    string    _prevHash;            //记录上个块的哈希值
+    Block(const string&    prevHash, const string& dataIn);    //构造函数
+    string CalculateHash();            //计算本区块的可能哈希 返回值在MineBlock函数中验证
+    void ProofOfWork(int difficultNum);
+private:
+    int64_t _nNonce;            //区块随机数 用于哈希值的产生
+    time_t    _tTime;                //创建时间
+};
+
 typedef struct Key {
     uint8_t publicKey[ECC_BYTES + 1];
     uint8_t privateKey[ECC_BYTES];
@@ -123,7 +138,9 @@ extern void groupSessionKey(Group *group);
 
 extern void MultiGroupSessionKey(Groups groups);
 
-extern void splitting(Group *group, Groups *groups, vector<Entity> Users, vector<int> splitUser);
+void splittingLeave(Group* group, vector<Entity> Users);
+
+void splittingAdd(Groups* groups, vector<Entity> Users, vector<int> splitUser, Group* group);
 
 extern void combine(vector<Group *> GroupID, Groups *groups);
 
