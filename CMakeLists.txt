@@ -9,4 +9,6 @@ add_executable(test1 main.cpp entity.cpp ssp_pair.cpp big.cpp ecn.cpp miracl.c z
         sm3_miracl_wrapper.cpp
         sm3_reference.cpp
         EccTest.c
+        sha256.cpp
+        sha256.h
 )
